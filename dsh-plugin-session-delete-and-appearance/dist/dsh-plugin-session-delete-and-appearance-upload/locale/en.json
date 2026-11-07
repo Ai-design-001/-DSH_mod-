@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session delete and appearance",
+    "description": "Adds a delete button to the session list and provides font size and section color customization."
+  }
+}

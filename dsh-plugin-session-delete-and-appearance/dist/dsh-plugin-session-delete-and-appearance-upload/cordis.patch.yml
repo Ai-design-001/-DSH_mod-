@@ -1,0 +1,3 @@
+- insert:
+    - id: session-delete-and-appearance
+      name: 'dsh-plugin-session-delete-and-appearance'
