@@ -12,6 +12,11 @@
                         as a fallback when the single-commit path is unavailable
                         (for example an empty repository with no ref yet).
 
+      -Replace          build the tree WITHOUT base_tree, so afterwards the
+                        repository contains exactly these files and nothing
+                        else. Use it to repair an upload that landed in a
+                        subfolder or dragged extra directories along.
+
     Source defaults to the zip built by scripts/pack-for-upload.ps1; pass
     -SourceDir to upload a folder instead.
 
@@ -37,7 +42,8 @@ param(
     [string]$TokenFile,
     [string]$Message = 'feat: initial release',
     [switch]$DryRun,
-    [switch]$OneFileAtATime
+    [switch]$OneFileAtATime,
+    [switch]$Replace
 )
 
 $ErrorActionPreference = 'Stop'
@@ -138,10 +144,14 @@ function Upload-OneCommit {
         Write-Host "blob  $relative"
     }
 
-    $tree = Invoke-GitHub -Uri "$gitApi/trees" -Method Post -Body @{
-        base_tree = $baseTree
-        tree      = $entries
+    if ($Replace) {
+        # No base_tree: the new tree contains ONLY the uploaded files, so
+        # everything else in the repository disappears in the same commit.
+        $treeBody = @{ tree = $entries }
+    } else {
+        $treeBody = @{ base_tree = $baseTree; tree = $entries }
     }
+    $tree = Invoke-GitHub -Uri "$gitApi/trees" -Method Post -Body $treeBody
     $commit = Invoke-GitHub -Uri "$gitApi/commits" -Method Post -Body @{
         message = $Message
         tree    = $tree.sha
@@ -196,6 +206,11 @@ try {
         }
         Write-Host ''
         Write-Host "Dry run: $($files.Count) files would be committed to $Owner/$Repo@$Branch as one commit."
+        if ($Replace) {
+            Write-Host 'Mode: -Replace - every other path in the repository would be removed.'
+        } else {
+            Write-Host 'Mode: merge - existing files are kept unless overwritten.'
+        }
         Write-Host 'No token used, nothing written.'
         return
     }
